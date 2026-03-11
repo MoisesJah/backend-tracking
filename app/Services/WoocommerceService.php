@@ -100,8 +100,16 @@ class WoocommerceService
 
         $this->handleResponse($response, "GET {$endpoint} paginado");
 
+        // Remove BOM from body if present and decode
+        $body = $response->body();
+        if (substr($body, 0, 3) === "\xef\xbb\xbf") {
+            $body = substr($body, 3);
+        }
+        
+        $data = json_decode($body, true);
+
         return [
-            'data' => $response->json(),
+            'data' => $data,
             'meta' => [
                 'total'        => (int) $response->header('X-WP-Total'),
                 'total_pages'  => (int) $response->header('X-WP-TotalPages'),
@@ -116,7 +124,14 @@ class WoocommerceService
     private function handleResponse(Response $response, string $context): array
     {
         if ($response->successful()) {
-            return $response->json() ?? [];
+            // Remove BOM from response if present
+            $body = $response->body();
+            if (substr($body, 0, 3) === "\xef\xbb\xbf") {
+                $body = substr($body, 3);
+            }
+            
+            $json = json_decode($body, true);
+            return $json ?? [];
         }
 
         $status  = $response->status();

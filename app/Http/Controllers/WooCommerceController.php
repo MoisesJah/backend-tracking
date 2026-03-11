@@ -20,10 +20,15 @@ class WooCommerceController extends Controller
     public function getOrders(Request $request): JsonResponse
     {
         try {
+            // WooCommerce API limits per_page to max 100
+            $perPage = (int) $request->get('per_page', 20);
+            $perPage = min($perPage, 100);
+            $perPage = max($perPage, 1);
+
             $result = $this->woo->getPaginated(
                 endpoint: 'orders',
                 page    : (int) $request->get('page', 1),
-                perPage : (int) $request->get('per_page', 20),
+                perPage : $perPage,
                 params  : $request->only(['status', 'customer', 'search', 'orderby', 'order'])
             );
 
