@@ -14,6 +14,30 @@ class WooCommerceController extends Controller
     ) {}
 
     /**
+     * GET /api/woo/orders/all  — Retorna TODOS los pedidos del rango de fechas.
+     * Acepta: after (ISO8601), before (ISO8601), status
+     */
+    public function getAllOrders(Request $request): JsonResponse
+    {
+        try {
+            $params = array_filter(
+                $request->only(['status', 'after', 'before']),
+                static fn (mixed $v): bool => $v !== null && $v !== ''
+            );
+
+            $orders = $this->woo->getAll('orders', $params);
+
+            return response()->json([
+                'data'  => $orders,
+                'meta'  => ['total' => count($orders)],
+            ]);
+
+        } catch (Throwable $e) {
+            return $this->errorResponse($e);
+        }
+    }
+
+    /**
      * GET /api/woo/orders
      * 
      */

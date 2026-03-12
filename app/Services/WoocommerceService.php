@@ -61,7 +61,11 @@ class WoocommerceService
 
             $this->handleResponse($response, "GET {$endpoint} (página {$page})");
 
-            $items = $response->json();
+            $body = $response->body();
+            if (substr($body, 0, 3) === "\xef\xbb\xbf") {
+                $body = substr($body, 3);
+            }
+            $items = json_decode($body, true) ?? [];
 
             if (empty($items)) {
                 break;
@@ -71,6 +75,11 @@ class WoocommerceService
 
             $totalPages = (int) $response->header('X-WP-TotalPages');
             $page++;
+
+            // Small delay between pages to avoid overwhelming the remote server
+            if ($page <= $totalPages) {
+                usleep(200_000); // 200ms
+            }
 
         } while ($page <= $totalPages);
 

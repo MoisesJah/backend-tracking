@@ -36,6 +36,7 @@ Route::prefix('v1')->group(function (): void {
         });
 
         Route::prefix('woo')->group(function () {
+            Route::get('/orders/all', [WooCommerceController::class, 'getAllOrders']);
             Route::get('/orders', [WooCommerceController::class, 'getOrders']);
         });
 
