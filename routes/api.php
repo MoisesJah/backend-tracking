@@ -23,6 +23,7 @@ Route::prefix('v1')->group(function (): void {
         // Orders endpoints
         Route::prefix('orders')->group(function (): void {
             Route::get('/', [OrderController::class, 'index']);
+            Route::get('/sync/{syncRun}', [OrderController::class, 'syncStatus']);
             Route::get('/{order}', [OrderController::class, 'show']);
             Route::get('/{order}/history', [OrderController::class, 'history']);
             Route::get('/{order}/logs', [OrderController::class, 'logs']);

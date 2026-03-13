@@ -26,15 +26,46 @@ class WooCommerceController extends Controller
             return $this->multiStoreResponse(
                 request: $request,
                 callback: function (WooCommerceService $service) use ($request) {
+                    $page = max(1, (int) $request->get('page', 1));
+                    $perPage = min(100, max(1, (int) $request->get('per_page', 100)));
+
                     return  $service->getPaginated(
                         endpoint: 'orders',
-                        page: (int) $request->get('page', 1),
-                        perPage: (int) $request->get('per_page', 20),
+                        page: $page,
+                        perPage: $perPage,
                         params: $request->only(['status', 'customer', 'search', 'orderby', 'order'])
                     );
                 }
             );
             
+        } catch (Throwable $e) {
+            return $this->errorResponse($e);
+        }
+    }
+
+    /**
+     * GET /api/v1/woo/orders/all
+     * Devuelve todas las ordenes de una o varias tiendas.
+     */
+    public function getAllOrders(Request $request): JsonResponse
+    {
+        try {
+            return $this->multiStoreResponse(
+                request: $request,
+                callback: function (WooCommerceService $service) use ($request) {
+                    $items = $service->getAll(
+                        endpoint: 'orders',
+                        params: $request->only(['status', 'customer', 'search', 'orderby', 'order'])
+                    );
+
+                    return [
+                        'data' => $items,
+                        'meta' => [
+                            'total' => count($items),
+                        ],
+                    ];
+                }
+            );
         } catch (Throwable $e) {
             return $this->errorResponse($e);
         }
@@ -74,21 +105,23 @@ class WooCommerceController extends Controller
             ], 422);
         }
 
-        try {
-            $result = [];
+        $result = [];
 
-            foreach ($slugs as $slug) {
+        foreach ($slugs as $slug) {
+            try {
                 $service = $this->manager->store($slug);
                 $data = $callback($service);
-
                 $result[$slug] = array_merge(['store' => $service->getLabel()], (array) $data);
+            } catch (Throwable $e) {
+                $result[$slug] = [
+                    'store' => $slug,
+                    'error' => true,
+                    'message' => $e->getMessage(),
+                ];
             }
-
-            return response()->json($result, $successStatus);
-
-        } catch (Throwable $e) {
-            return $this->errorResponse($e);
         }
+
+        return response()->json($result, $successStatus);
     }
     #RESPUESTA A UNA SOLA TIENDA 
     private function singleStoreResponse(Request $request, callable $callback, int $successStatus = 200): JsonResponse

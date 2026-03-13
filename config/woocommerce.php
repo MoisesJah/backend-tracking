@@ -23,6 +23,7 @@ return [
     'api_version' => env('WOO_API_VERSION', 'wc/v3'),
     'timeout'     => (int) env('WOO_TIMEOUT', 30),
     'per_page'    => (int) env('WOO_PER_PAGE', 100),
+    'max_pages'   => (int) env('WOO_MAX_PAGES', 0),
  
 ];
 

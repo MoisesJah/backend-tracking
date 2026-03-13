@@ -31,8 +31,9 @@ final class WooCommerceWebhookService
 
         /** @var Order $order */
         $order = Order::query()->firstOrCreate(
-            ['external_id' => $externalId],
+            ['store_slug' => 'legacy', 'external_id' => $externalId],
             [
+                'store_slug' => 'legacy',
                 'status' => $status,
                 'currency' => (string) ($payload['currency'] ?? 'USD'),
                 'total' => (float) ($payload['total'] ?? 0),
