@@ -10,6 +10,11 @@ use App\Http\Controllers\Api\Webhooks\WooCommerceWebhookController;
 use App\Http\Controllers\WooCommerceController;
 
 Route::prefix('v1')->group(function (): void {
+    Route::get('/', static fn () => response()->json([
+        'message' => 'Debes iniciar sesion para usar la API.',
+        'login_endpoint' => '/api/v1/auth/login',
+    ]));
+
     Route::get('/health', static fn () => response()->json(['ok' => true]));
 
     Route::prefix('auth')->group(function (): void {
@@ -35,6 +40,13 @@ Route::prefix('v1')->group(function (): void {
         Route::prefix('auth')->group(function (): void {
             Route::post('/logout', [AuthController::class, 'logout']);
         });
+
+        Route::prefix('users')->group(function (): void {
+            Route::get('/', [UserController::class, 'index']);
+            Route::post('/', [UserController::class, 'store']);
+            Route::post('/heartbeat', [UserController::class, 'heartbeat']);
+        });
+
         Route::get('/stores', [WooCommerceController::class, 'listStores']);
         Route::prefix('woo')->group(function () {
             Route::get('/orders/all', [WooCommerceController::class, 'getAllOrders']);
@@ -42,8 +54,6 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/{id}',    [WooCommerceController::class, 'showOrder']);
 
         });
-
-        Route::post('/users', [UserController::class, 'store']);
     });
 
     Route::post(

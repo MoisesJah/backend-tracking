@@ -112,4 +112,8 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    'active_user_window_seconds' => (int) env('ACTIVE_USER_WINDOW_SECONDS', 120),
+
+    'user_activity_touch_interval_seconds' => (int) env('USER_ACTIVITY_TOUCH_INTERVAL_SECONDS', 30),
+
 ];

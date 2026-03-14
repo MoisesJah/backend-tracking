@@ -33,6 +33,8 @@ class AuthController extends Controller
             return response()->json(['message' => 'Credenciales inválidas.'], 401);
         }
 
+        $user->forceFill(['last_seen_at' => now()])->saveQuietly();
+
         $accessToken = $this->jwtTokenService->createAccessToken($user);
         $refreshToken = $this->refreshTokenService->issueForUser($user);
 
@@ -45,7 +47,9 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'is_admin' => (bool) ($user->is_admin ?? false),
+                'role' => $user->role?->value,
+                'is_admin' => $user->isAdmin(),
+                'last_seen_at' => optional($user->last_seen_at)?->toIso8601String(),
             ],
         ]);
     }

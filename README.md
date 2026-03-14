@@ -286,6 +286,8 @@ Crea un nuevo usuario.
 
 `Authorization: Bearer {access_token}`
 
+Solo un usuario administrador puede ejecutar este endpoint.
+
 - **Body (JSON)**
 
 ```json
@@ -293,7 +295,8 @@ Crea un nuevo usuario.
   "name": "Nuevo Usuario",
   "email": "user@example.com",
   "password": "secret123",
-  "is_admin": true
+  "role": "delivery",
+  "is_admin": false
 }
 ```
 
@@ -302,11 +305,70 @@ Reglas:
 - `name` – requerido, string, máx. 255.
 - `email` – requerido, email único (`unique:users,email`), máx. 255.
 - `password` – requerido, string, mín. 8.
+- `role` – opcional, uno de: `admin`, `vendedor_redes`, `ventas_web`, `empaquetador`, `despachador`, `delivery`.
 - `is_admin` – opcional, boolean.
 
 - **Respuesta 201**
 
 Devuelve el usuario creado.
+
+### GET /api/v1/users
+
+Lista usuarios para tabla de administración e incluye indicador `is_active` según su actividad reciente.
+
+- **Headers**
+
+`Authorization: Bearer {access_token}`
+
+Solo un usuario administrador puede ejecutar este endpoint.
+
+- **Query params opcionales**
+
+- `search` – filtra por nombre o correo.
+- `per_page` – paginación (10 a 100, por defecto 20).
+- `window_seconds` – ventana para considerar un usuario activo (30 a 3600, por defecto 120).
+
+- **Respuesta 200 (ejemplo simplificado)**
+
+```json
+{
+  "window_seconds": 120,
+  "active_users": 2,
+  "total_users": 8,
+  "users": {
+    "data": [
+      {
+        "id": 1,
+        "name": "Admin",
+        "email": "admin@example.com",
+        "role": "admin",
+        "is_admin": true,
+        "last_seen_at": "2026-03-14T15:10:00Z",
+        "is_active": true,
+        "created_at": "2026-03-03T16:00:00Z"
+      }
+    ]
+  }
+}
+```
+
+### POST /api/v1/users/heartbeat
+
+Actualiza actividad del usuario autenticado (útil para estado en vivo al probar WebSockets y presencia).
+
+- **Headers**
+
+`Authorization: Bearer {access_token}`
+
+- **Respuesta 200**
+
+```json
+{
+  "user_id": 1,
+  "is_active": true,
+  "last_seen_at": "2026-03-14T15:10:30Z"
+}
+```
 
 ---
 
