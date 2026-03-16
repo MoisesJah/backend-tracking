@@ -27,6 +27,7 @@ class User extends Authenticatable
         'password',
         'role',
         'is_admin',
+        'last_seen_at',
     ];
 
     /**
@@ -51,6 +52,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_admin' => 'boolean',
             'role' => UserRole::class,
+            'last_seen_at' => 'datetime',
         ];
     }
 
@@ -75,7 +77,7 @@ class User extends Authenticatable
      */
     public function isAdmin(): bool
     {
-        return $this->role === UserRole::ADMIN;
+        return $this->role === UserRole::ADMIN || (bool) ($this->is_admin ?? false);
     }
 
     /**
@@ -83,6 +85,10 @@ class User extends Authenticatable
      */
     public function hasRole(UserRole $role): bool
     {
+        if ($role === UserRole::ADMIN) {
+            return $this->isAdmin();
+        }
+
         return $this->role === $role;
     }
 

@@ -45,6 +45,14 @@ class JwtAuthMiddleware
             throw new AuthenticationException('Invalid token.');
         }
 
+        $touchIntervalSeconds = max(15, (int) config('auth.user_activity_touch_interval_seconds', 30));
+        $shouldTouch = $user->last_seen_at === null
+            || $user->last_seen_at->lt(now()->subSeconds($touchIntervalSeconds));
+
+        if ($shouldTouch) {
+            $user->forceFill(['last_seen_at' => now()])->saveQuietly();
+        }
+
         Auth::setUser($user);
         $request->setUserResolver(static fn (): User => $user);
 
