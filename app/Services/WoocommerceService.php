@@ -106,7 +106,11 @@ class WoocommerceService
             ],
         ];
     }
-    
+    #FUNCION PARA ACTUALIZAR EL ESTADO DE UNA ORDEN
+     public function put(string $endpoint, int|string $id, array $data): array
+    {
+        return $this->handleResponse($this->client->put("{$endpoint}/{$id}", $data), "PUT {$endpoint}/{$id}");
+    }
     #MANEJO DE ERRORES 
       private function handleResponse(Response $response, string $context): array
     {

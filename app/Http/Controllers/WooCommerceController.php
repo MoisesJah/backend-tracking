@@ -29,7 +29,7 @@ class WooCommerceController extends Controller
                     $page = max(1, (int) $request->get('page', 1));
                     $perPage = min(100, max(1, (int) $request->get('per_page', 100)));
 
-                    return  $service->getPaginated(
+                    return $service->getPaginated(
                         endpoint: 'orders',
                         page: $page,
                         perPage: $perPage,
@@ -37,7 +37,7 @@ class WooCommerceController extends Controller
                     );
                 }
             );
-            
+
         } catch (Throwable $e) {
             return $this->errorResponse($e);
         }
@@ -76,7 +76,7 @@ class WooCommerceController extends Controller
      */
     public function showOrder(Request $request, int $id): JsonResponse
     {
-        return $this->singleStoreResponse($request, fn ($s) => $s->find('orders', $id));
+        return $this->singleStoreResponse($request, fn($s) => $s->find('orders', $id));
     }
 
     #LISTA DE TIENDAS REGISTRADAS EN EL SISTEMA
@@ -91,6 +91,13 @@ class WooCommerceController extends Controller
 
         return response()->json(['data' => $stores]);
     }
+
+    #PUT (/api/woo/orders/{id}) - PARA ACTUALIZAR EL ESTADO DE UNA ORDEN EN WOOCOMMERCE, DEBE APUNTAR A UNA SOLA TIENDA
+    public function updateOrder(Request $request, int $id): JsonResponse
+    {
+        return $this->singleStoreResponse($request, fn($s) => $s->put('orders', $id, $request->all()));
+    }
+
     # RESPUESTA PARA MULTIPLES TIENDAS 
     private function multiStoreResponse(Request $request, callable $callback, int $successStatus = 200): JsonResponse
     {
