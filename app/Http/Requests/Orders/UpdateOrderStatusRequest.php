@@ -42,6 +42,12 @@ class UpdateOrderStatusRequest extends FormRequest
                 'max:5120', // 5MB
                 'mimes:jpeg,png,jpg,gif,webp',
             ],
+            'evidence_image' => [
+                'nullable',
+                'image',
+                'max:5120',
+                'mimes:jpeg,png,jpg,gif,webp',
+            ],
         ];
     }
 
@@ -57,6 +63,9 @@ class UpdateOrderStatusRequest extends FormRequest
             'delivery_image.image' => 'El archivo debe ser una imagen válida',
             'delivery_image.max' => 'La imagen no puede exceder 5MB',
             'delivery_image.mimes' => 'La imagen debe ser JPEG, PNG, JPG, GIF o WEBP',
+            'evidence_image.image' => 'El archivo debe ser una imagen válida',
+            'evidence_image.max' => 'La imagen no puede exceder 5MB',
+            'evidence_image.mimes' => 'La imagen debe ser JPEG, PNG, JPG, GIF o WEBP',
         ];
     }
 
@@ -79,8 +88,13 @@ class UpdateOrderStatusRequest extends FormRequest
     /**
      * Check if an image was uploaded.
      */
-    public function hasDeliveryImage(): bool
+    public function hasEvidenceImage(): bool
     {
-        return $this->hasFile('delivery_image');
+        return $this->hasFile('evidence_image') || $this->hasFile('delivery_image');
+    }
+
+    public function evidenceImageField(): string
+    {
+        return $this->hasFile('evidence_image') ? 'evidence_image' : 'delivery_image';
     }
 }

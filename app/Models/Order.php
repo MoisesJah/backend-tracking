@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\OrderStatus;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +14,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Order extends Model
 {
     use HasFactory;
+
+    /** @var list<string> */
+    protected $appends = [
+        'status_label',
+        'woo_status',
+        'woo_status_label',
+    ];
 
     /** @var list<string> */
     protected $fillable = [
@@ -81,5 +89,76 @@ class Order extends Model
     public function getStatusLabel(): string
     {
         return $this->status->label();
+    }
+
+    protected function statusLabel(): Attribute
+    {
+        return Attribute::get(fn (): string => $this->status->label());
+    }
+
+    protected function wooStatus(): Attribute
+    {
+        return Attribute::get(function (): ?string {
+            $rawStatus = data_get($this->meta, 'status');
+
+            if (is_string($rawStatus) && $rawStatus !== '') {
+                return strtolower($rawStatus);
+            }
+
+            return $this->mapInternalStatusToWoo($this->status);
+        });
+    }
+
+    protected function wooStatusLabel(): Attribute
+    {
+        return Attribute::get(function (): string {
+            return self::wooStatusLabels()[$this->woo_status] ?? $this->status->label();
+        });
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function wooStatusLabels(): array
+    {
+        return [
+            'pending' => 'Pendiente de Pago',
+            'processing' => 'En Proceso',
+            'on-hold' => 'En Espera',
+            'completed' => 'Completado',
+            'cancelled' => 'Cancelado',
+            'refunded' => 'Reembolsado',
+            'failed' => 'Fallido',
+        ];
+    }
+
+    private function mapInternalStatusToWoo(OrderStatus $status): string
+    {
+        return match ($status) {
+            OrderStatus::EN_PROCESO => 'processing',
+            OrderStatus::EMPAQUETADO,
+            OrderStatus::DESPACHADO,
+            OrderStatus::EN_CAMINO => 'processing',
+            OrderStatus::ENTREGADO => 'completed',
+            OrderStatus::CANCELADO => 'cancelled',
+            OrderStatus::ERROR => 'failed',
+        };
+    }
+
+    /**
+     * Resolve the model from the route binding.
+     * Tries external_id first (from WooCommerce), then falls back to local id.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        // Try by external_id first (frontend sends WooCommerce order ID)
+        $model = $this->where('external_id', $value)->first();
+        
+        if ($model) {
+            return $model;
+        }
+
+        // Fall back to local id
+        return $this->where('id', $value)->first();
     }
 }

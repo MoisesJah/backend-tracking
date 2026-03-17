@@ -3,6 +3,8 @@
 namespace App\Console;
 
 use App\Jobs\CancelExpiredOrderErrorsJob;
+use App\Jobs\SyncWooOrdersJob;
+use App\Models\OrderSyncRun;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -13,6 +15,20 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
+        // Sync WooCommerce orders every 5 minutes
+        $schedule->call(function (): void {
+            $run = OrderSyncRun::create([
+                'status' => 'pending',
+                'stores' => config('woocommerce.stores') ? array_keys(config('woocommerce.stores')) : [],
+                'requested_by' => null,
+            ]);
+
+            SyncWooOrdersJob::dispatch($run->id);
+        })
+            ->everyFiveMinutes()
+            ->name('sync-woo-orders-automatic')
+            ->description('Automatically sync WooCommerce orders every 5 minutes');
+
         // Run job to cancel orders with expired errors
         // Every hour, check for orders in error status for more than 1 day
         $schedule->job(CancelExpiredOrderErrorsJob::class)

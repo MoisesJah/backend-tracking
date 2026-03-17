@@ -141,10 +141,14 @@ class OrderController extends Controller
             $user = auth()->user();
 
             // Handle image upload if provided
-            $imagePath = null;
-            if ($request->hasDeliveryImage()) {
-                $imagePath = $request->file('delivery_image')
-                    ->store('orders/deliveries', 'public');
+            $evidenceImagePath = null;
+            if ($request->hasEvidenceImage()) {
+                $imagePathDir = $request->getStatus() === OrderStatus::ENTREGADO
+                    ? 'orders/deliveries'
+                    : 'orders/errors';
+
+                $evidenceImagePath = $request->file($request->evidenceImageField())
+                    ->store($imagePathDir, 'public');
             }
 
             // Update status with full validation
@@ -153,7 +157,7 @@ class OrderController extends Controller
                 newStatus: $request->getStatus(),
                 user: $user,
                 errorReason: $request->getErrorReason(),
-                deliveryImagePath: $imagePath,
+                evidenceImagePath: $evidenceImagePath,
                 ipAddress: $request->ip()
             );
 
