@@ -14,6 +14,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 use Throwable;
 
 class SyncWooOrdersJob implements ShouldQueue
@@ -42,6 +43,7 @@ class SyncWooOrdersJob implements ShouldQueue
         $totalOrders = 0;
         $syncedOrders = 0;
         $failedStores = [];
+        $isFullSync = $run->from_date === null && $run->to_date === null;
 
         try {
             $wooParams = [];
@@ -74,6 +76,15 @@ class SyncWooOrdersJob implements ShouldQueue
                                 $itemError->getMessage(),
                             ));
                         }
+                    }
+
+                    if ($isFullSync) {
+                        $remoteExternalIds = collect($orders)
+                            ->map(fn (array $wooOrder): string => (string) ($wooOrder['id'] ?? ''))
+                            ->filter(fn (string $id): bool => $id !== '')
+                            ->values();
+
+                        $this->syncSoftDeletedOrdersForStore((string) $slug, $remoteExternalIds, $run);
                     }
                 } catch (Throwable $e) {
                     $failedStores[] = [
@@ -127,6 +138,7 @@ class SyncWooOrdersJob implements ShouldQueue
 
         return DB::transaction(function () use ($wooOrder, $slug, $externalId, $run): array {
             $existingOrder = Order::query()
+                ->withTrashed()
                 ->where('store_slug', $slug)
                 ->where('external_id', $externalId)
                 ->first();
@@ -170,6 +182,23 @@ class SyncWooOrdersJob implements ShouldQueue
             $updateData = [
                 'synced_at' => Carbon::now('UTC'),
             ];
+
+            if ($existingOrder->trashed()) {
+                $existingOrder->restore();
+                $changes['deleted_at'] = [
+                    'old' => $existingOrder->deleted_at,
+                    'new' => null,
+                ];
+
+                $this->createSyncChange(
+                    orderId: $existingOrder->id,
+                    syncRunId: $run->id,
+                    field: 'deleted_at',
+                    oldValue: $existingOrder->deleted_at,
+                    newValue: null,
+                    action: 'restored',
+                );
+            }
 
             if ($this->shouldSyncInternalStatus($existingOrder)) {
                 $oldStatus = $existingOrder->status;
@@ -361,5 +390,35 @@ class SyncWooOrdersJob implements ShouldQueue
             'failed', 'refunded' => OrderStatus::ERROR,
             default => OrderStatus::EN_PROCESO,
         };
+    }
+
+    private function syncSoftDeletedOrdersForStore(string $slug, Collection $remoteExternalIds, OrderSyncRun $run): void
+    {
+        Order::query()
+            ->where('store_slug', $slug)
+            ->whereNull('deleted_at')
+            ->when(
+                $remoteExternalIds->isNotEmpty(),
+                fn ($query) => $query->whereNotIn('external_id', $remoteExternalIds->all())
+            )
+            ->when(
+                $remoteExternalIds->isEmpty(),
+                fn ($query) => $query
+            )
+            ->chunkById(200, function ($orders) use ($run): void {
+                foreach ($orders as $order) {
+                    $oldDeletedAt = $order->deleted_at;
+                    $order->delete();
+
+                    $this->createSyncChange(
+                        orderId: $order->id,
+                        syncRunId: $run->id,
+                        field: 'deleted_at',
+                        oldValue: $oldDeletedAt,
+                        newValue: now('UTC'),
+                        action: 'soft_deleted',
+                    );
+                }
+            });
     }
 }
