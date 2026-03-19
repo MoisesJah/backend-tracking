@@ -21,6 +21,9 @@ class SyncWooOrdersJob implements ShouldQueue
 {
     use Queueable;
 
+    /** @var list<string> */
+    private const AUDITABLE_FIELDS = ['status', 'total', 'deleted_at'];
+
     public function __construct(private readonly int $runId)
     {
     }
@@ -243,7 +246,7 @@ class SyncWooOrdersJob implements ShouldQueue
             foreach ($syncData as $field => $newValue) {
                 $oldValue = $existingOrder->getAttribute($field);
 
-                if ($this->valuesAreDifferent($oldValue, $newValue)) {
+                if ($this->valuesAreDifferentForField($field, $oldValue, $newValue)) {
                     $changes[$field] = [
                         'old' => $oldValue,
                         'new' => $newValue,
@@ -342,6 +345,10 @@ class SyncWooOrdersJob implements ShouldQueue
         mixed $newValue,
         string $action,
     ): void {
+        if (! in_array($field, self::AUDITABLE_FIELDS, true)) {
+            return;
+        }
+
         OrderSyncChange::query()->create([
             'order_id' => $orderId,
             'sync_run_id' => $syncRunId,
@@ -379,6 +386,20 @@ class SyncWooOrdersJob implements ShouldQueue
         }
 
         return $oldValue !== $newValue;
+    }
+
+    private function valuesAreDifferentForField(string $field, mixed $oldValue, mixed $newValue): bool
+    {
+        if ($field === 'total') {
+            return $this->normalizeMoney($oldValue) !== $this->normalizeMoney($newValue);
+        }
+
+        return $this->valuesAreDifferent($oldValue, $newValue);
+    }
+
+    private function normalizeMoney(mixed $value): string
+    {
+        return number_format((float) $value, 2, '.', '');
     }
 
     private function mapWooStatus(string $status): OrderStatus
