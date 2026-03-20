@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Orders\OrderController;
+use App\Http\Controllers\Api\Orders\PublicOrderLookupController;
 use App\Http\Controllers\Api\Users\UserController;
 use App\Http\Controllers\Api\Webhooks\WooCommerceWebhookController;
 use App\Http\Controllers\WooCommerceController;
@@ -21,6 +22,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/login', [AuthController::class, 'login']);
         Route::post('/refresh', [AuthController::class, 'refresh']);
     });
+
+    Route::post('/orders/public/lookup', [PublicOrderLookupController::class, 'lookup'])
+        ->middleware('throttle:30,1');
 
     Route::middleware(['jwt'])->group(function (): void {
         Route::get('/me', static fn () => response()->json(['user' => request()->user()]));

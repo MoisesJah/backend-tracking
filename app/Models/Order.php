@@ -32,6 +32,8 @@ class Order extends Model
         'total',
         'currency',
         'customer_name',
+        'numero',
+        'serie',
         'error_reason',
         'delivery_image_path',
         'error_created_at',

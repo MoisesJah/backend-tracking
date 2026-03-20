@@ -297,12 +297,16 @@ class SyncWooOrdersJob implements ShouldQueue
             ((string) data_get($wooOrder, 'billing.last_name', ''))
         );
 
+        $bsale = $wooOrder['bsale'] ?? [];
+
         return [
             'store_slug' => $slug,
             'external_id' => (string) ($wooOrder['id'] ?? ''),
             'total' => (float) ($wooOrder['total'] ?? 0),
             'currency' => (string) ($wooOrder['currency'] ?? 'PEN'),
             'customer_name' => $customerName !== '' ? $customerName : null,
+            'numero' => isset($bsale['numero']) ? (string) $bsale['numero'] : null,
+            'serie' => isset($bsale['serie']) ? (string) $bsale['serie'] : null,
             'meta' => $wooOrder,
         ];
     }

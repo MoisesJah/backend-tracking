@@ -37,6 +37,7 @@ final class WooCommerceWebhookService
             ->first();
 
         if ($order === null) {
+            $bsale = $payload['bsale'] ?? [];
             $order = new Order();
             $order->fill([
                 'store_slug' => 'legacy',
@@ -44,6 +45,8 @@ final class WooCommerceWebhookService
                 'status' => $status,
                 'currency' => (string) ($payload['currency'] ?? 'USD'),
                 'total' => (float) ($payload['total'] ?? 0),
+                'numero' => isset($bsale['numero']) ? (string) $bsale['numero'] : null,
+                'serie' => isset($bsale['serie']) ? (string) $bsale['serie'] : null,
                 'meta' => $payload,
             ]);
             $order->forceFill([
