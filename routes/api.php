@@ -9,13 +9,16 @@ use App\Http\Controllers\Api\Orders\PublicOrderLookupController;
 use App\Http\Controllers\Api\Users\UserController;
 use App\Http\Controllers\Api\Webhooks\WooCommerceWebhookController;
 use App\Http\Controllers\WooCommerceController;
+use App\Http\Controllers\Api\BsaleController;
 
 Route::prefix('v1')->group(function (): void {
     Route::get('/', static fn () => response()->json([
         'message' => 'Debes iniciar sesion para usar la API.',
         'login_endpoint' => '/api/v1/auth/login',
+       
     ]));
 
+    Route::get('/bsale/pedido/{offset}', [BsaleController::class, 'getOrderDetails']);
     Route::get('/health', static fn () => response()->json(['ok' => true]));
 
     Route::prefix('auth')->group(function (): void {
