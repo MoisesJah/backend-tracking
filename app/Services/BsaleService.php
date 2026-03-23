@@ -19,11 +19,11 @@ class BsaleService
     $firstResponse = $this->client->get('documents', ['limit' => 1, 'state' => 0]);
     $total = $firstResponse->json()['count'] ?? 0;
 
-    // 2. Calculamos el offset inverso: 
+    // 2. Calculamos el offset inverso para traer los registros más nuevos primero
     // Si quiero la "página 0" de lo más nuevo, el offset real debe ser (Total - Limit)
     $realOffset = max(0, $total - $limit - $offset);
 
-    // 3. Traemos los datos (Bsale los traerá del 45150 al 45200)
+    // 3. Traemos los datos 
     $response = $this->client->get('documents', [
         'limit'   => $limit,
         'offset'  => $realOffset,
