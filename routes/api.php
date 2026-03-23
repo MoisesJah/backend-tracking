@@ -18,7 +18,7 @@ Route::prefix('v1')->group(function (): void {
        
     ]));
 
-    Route::get('/bsale/pedido/{offset}', [BsaleController::class, 'getOrderDetails']);
+    Route::get('/bsale/orders', [BsaleController::class, 'index']);
     Route::get('/health', static fn () => response()->json(['ok' => true]));
 
     Route::prefix('auth')->group(function (): void {
