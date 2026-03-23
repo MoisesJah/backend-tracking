@@ -19,6 +19,8 @@ class BsaleService
         $response = $this->client->get('documents', [
             'limit' => $limit,
             'offset' => $offset,
+            'state' => 0, // Solo documentos activos
+            'sorting' => 'emissionDate:desc', // lo mas neuvo primero 
             'expand' => '[client,sellers,attributes,payments,details]'
         ]);
 
