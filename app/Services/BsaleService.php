@@ -13,41 +13,45 @@ class BsaleService
         $this->client = $client;
     }
 
-    public function getOrders($offset = 0, $limit = 50)
-    {
-        // 1. Llamada a Bsale con todos los expand necesarios
-        $response = $this->client->get('documents', [
-            'limit' => $limit,
-            'offset' => $offset,
-            'state' => 0, // Solo documentos activos
-            'sorting' => 'emissionDate:desc', // lo mas neuvo primero 
-            'expand' => '[client,sellers,attributes,payments,details]'
-        ]);
+  public function getOrders($offset = 0, $limit = 50)
+{
+    // 1. Primero consultamos el total real de documentos activos
+    $firstResponse = $this->client->get('documents', ['limit' => 1, 'state' => 0]);
+    $total = $firstResponse->json()['count'] ?? 0;
 
-        $data = $response->json();
-        
-        // 2. Filtrar vendedores WEB y formatear
-        $items = collect($data['items'] ?? [])
-            ->filter(function ($order) {
-                $vendedor = $order['sellers']['items'][0] ?? null;
-                if (!$vendedor) return true;
-                
-                $fullName = strtoupper(($vendedor['firstName'] ?? '') . ' ' . ($vendedor['lastName'] ?? ''));
-                // Si el nombre contiene WEB, lo sacamos de la lista
-                return !str_contains($fullName, 'WEB');
-            })
-            ->map(function ($order) {
-                // AQUÍ LLAMAMOS A LA FUNCIÓN QUE FORMATEA TODO
-                return $this->formatOrder($order);
-            })
-            ->values(); // Reindexamos para evitar los "null" en el JSON
+    // 2. Calculamos el offset inverso: 
+    // Si quiero la "página 0" de lo más nuevo, el offset real debe ser (Total - Limit)
+    $realOffset = max(0, $total - $limit - $offset);
 
-        return [
-            'count' => $data['count'] ?? 0,
-            'next' => $data['next'] ?? null,
-            'items' => $items
-        ];
-    }
+    // 3. Traemos los datos (Bsale los traerá del 45150 al 45200)
+    $response = $this->client->get('documents', [
+        'limit'   => $limit,
+        'offset'  => $realOffset,
+        'state'   => 0,
+        'expand'  => '[client,sellers,attributes,payments,details]'
+    ]);
+
+    $data = $response->json();
+    
+    // 4. Invertimos la colección para que el 45200 (el más nuevo) salga primero en la lista
+    $items = collect($data['items'] ?? [])
+        ->reverse() 
+        ->filter(function ($order) {
+            $vendedor = $order['sellers']['items'][0] ?? null;
+            if (!$vendedor) return true;
+            $fullName = strtoupper(($vendedor['firstName'] ?? '') . ' ' . ($vendedor['lastName'] ?? ''));
+            return !str_contains($fullName, 'WEB');
+        })
+        ->map(function ($order) {
+            return $this->formatOrder($order);
+        })
+        ->values();
+
+    return [
+        'total_registros' => $total,
+        'items' => $items
+    ];
+}
 
     /**
      * Esta función recupera los datos que se habían "perdido"

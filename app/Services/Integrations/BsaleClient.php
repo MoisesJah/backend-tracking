@@ -21,6 +21,6 @@ class BsaleClient
         return Http::withHeaders([
             'access_token' => $this->token,
             'Accept' => 'application/json',
-        ])->get("{$this->baseUrl}/{$endpoint}.json", $params);
+        ])->get(rtrim($this->baseUrl, '/') . '/' . ltrim($endpoint, '/') . '.json', $params);
     }
 }
