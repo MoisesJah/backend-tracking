@@ -15,6 +15,7 @@ class BsaleService
 
     public function getOrders($offset = 0, $limit = 50)
     {
+        // 1. Llamada a Bsale con todos los expand necesarios
         $response = $this->client->get('documents', [
             'limit' => $limit,
             'offset' => $offset,
@@ -23,24 +24,21 @@ class BsaleService
 
         $data = $response->json();
         
-        // 1. Convertimos a colección
+        // 2. Filtrar vendedores WEB y formatear
         $items = collect($data['items'] ?? [])
-            // 2. FILTRAMOS primero: Si es WEB, se va de la lista de una vez
             ->filter(function ($order) {
                 $vendedor = $order['sellers']['items'][0] ?? null;
-                if (!$vendedor) return true; // Si no hay vendedor, lo dejamos por si acaso
+                if (!$vendedor) return true;
                 
                 $fullName = strtoupper(($vendedor['firstName'] ?? '') . ' ' . ($vendedor['lastName'] ?? ''));
-                
-                // Retorna true si NO contiene WEB (es decir, lo mantiene)
+                // Si el nombre contiene WEB, lo sacamos de la lista
                 return !str_contains($fullName, 'WEB');
             })
-            // 3. FORMATEAMOS solo lo que sobrevivió al filtro
             ->map(function ($order) {
+                // AQUÍ LLAMAMOS A LA FUNCIÓN QUE FORMATEA TODO
                 return $this->formatOrder($order);
             })
-            // 4. REINDEXAMOS para que no queden huecos de IDs en el JSON
-            ->values(); 
+            ->values(); // Reindexamos para evitar los "null" en el JSON
 
         return [
             'count' => $data['count'] ?? 0,
@@ -49,38 +47,61 @@ class BsaleService
         ];
     }
 
+    /**
+     * Esta función recupera los datos que se habían "perdido"
+     */
     private function formatOrder($order) 
     {
+        // --- LÓGICA DE ATRIBUTOS (Marca, Despacho, Estado) ---
         $getAttr = function($name) use ($order) {
-            $attr = collect($order['attributes']['items'] ?? [])
-                ->first(fn($a) => trim(strtoupper($a['name'])) === strtoupper($name));
+            $attributes = $order['attributes']['items'] ?? [];
+            $attr = collect($attributes)->first(function($a) use ($name) {
+                return trim(strtoupper($a['name'])) === strtoupper($name);
+            });
+
             if (!$attr) return "N/A";
+
             $value = $attr['value'] ?? "";
-            if ($value !== "" && !is_numeric($value)) return $value;
-            return $attr['details'][0]['name'] ?? $value;
+            // Si el valor no es un número, es texto directo (como la fecha de despacho)
+            $valueEsNumero = is_numeric($value) && trim($value) !== "";
+
+            if ($valueEsNumero && isset($attr['details']) && count($attr['details']) > 0) {
+                return $attr['details'][0]['name']; // Trae "EQUIPO 3", "PEDIDO", etc.
+            }
+
+            return $value ?: "N/A";
         };
 
+        // --- LÓGICA DE PAGOS ---
         $pagos = collect($order['payments'] ?? []);
+        $totalCaja = $pagos->sum('amount');
+        $metodosDetallados = $pagos->map(function($p) {
+            return $p['name'] . " (S/ " . number_format($p['amount'], 2) . ")";
+        })->implode(' + ');
 
         return [
-            'boleta' => $order['serialNumber'],
+            'boleta' => $order['serialNumber'] ?? "TK-{$order['number']}",
             'fechaEmision' => date('d/m/Y, h:i A', $order['emissionDate'] ?? $order['generationDate']),
             'cliente' => [
                 'nombre' => trim(($order['client']['firstName'] ?? '') . ' ' . ($order['client']['lastName'] ?? '')),
                 'dni_ruc' => $order['client']['code'] ?? 'N/A',
-                'email' => $order['client']['email'] ?? 'N/A',
+                'email' => $order['client']['email'] ?? 'No registrado',
                 'telefono' => $order['client']['phone'] ?? 'N/A'
             ],
             'vendedor' => trim(($order['sellers']['items'][0]['firstName'] ?? '') . ' ' . ($order['sellers']['items'][0]['lastName'] ?? '')),
+            
+            // --- AQUÍ ESTÁ LO QUE FALTABA ---
             'atributos' => [
                 'fechaDespacho' => $getAttr("FECHA DE DESPACHO"),
                 'marcaRedSocial' => $getAttr("MARCA/RED SOCIAL"),
                 'estadoPedido' => $getAttr("ESTADO DE PEDIDO"),
             ],
+            
             'pago' => [
-                'metodos' => $pagos->map(fn($p) => $p['name'] . " (S/ " . number_format($p['amount'], 2) . ")")->implode(' + '),
-                'montoTotal' => "S/ " . number_format($pagos->sum('amount'), 2)
+                'metodos' => $metodosDetallados ?: "EFECTIVO",
+                'montoTotal' => "S/ " . number_format($totalCaja, 2)
             ],
+            
             'prendas' => collect($order['details']['items'] ?? [])->map(function($item) {
                 $montoPagadoReal = $item['totalAmount'];
                 $descuento = $item['totalDiscount'] ?? 0;
