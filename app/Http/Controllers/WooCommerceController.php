@@ -27,7 +27,7 @@ class WooCommerceController extends Controller
                 request: $request,
                 callback: function (WooCommerceService $service) use ($request) {
                     $page = max(1, (int) $request->get('page', 1));
-                    $perPage = min(100, max(1, (int) $request->get('per_page', 100)));
+                    $perPage = min(50, max(1, (int) $request->get('per_page', 50)));
 
                     return $service->getPaginated(
                         endpoint: 'orders',
